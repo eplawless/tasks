@@ -99,6 +99,38 @@ describe('Task', function() {
         })
     });
 
+    it('can be cancelled partway through an async chain', function(done) {
+        var count = 0;
+        function counter(delay) {
+            return new Task(function(resolve, reject) {
+                ++count;
+                return timer(delay).subscribe(resolve, reject);
+            });
+        }
+        var cancel = counter(10).map(
+            counter(10)
+                .map(counter(10)
+                     .map(counter(10)
+                          .map(function() { return 'hi'; }))))
+            .subscribe(function(result) {
+                done(new Error('should not finish'));
+            }, function(error) {
+                done(new Error(error));
+            });
+
+        timer(25)
+            .subscribe(function() {
+                cancel();
+                timer(5).subscribe(function() {
+                    if (count !== 3) {
+                        done(new Error('expected 3 counters to go off'));
+                    } else {
+                        done();
+                    }
+                });
+            }, done);
+    });
+
     it('can map over tasks', function(done) {
         timer(1)
             .map(timer(2))
