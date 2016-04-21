@@ -1,0 +1,16 @@
+{
+  "name": "tasks",
+  "version": "1.0.0",
+  "description": "",
+  "main": "index.js",
+  "scripts": {
+    "test": "node ./node_modules/mocha/bin/mocha ./__tests__ --reporter spec",
+    "watch:test": "node ./node_modules/nodemon/bin/nodemon.js -w ./lib -w ./__tests__ ./node_modules/mocha/bin/mocha -- ./__tests__ --reporter spec"
+  },
+  "author": "Eric Lawless <elawless@netflix.com> (http://www.netflix.com/)",
+  "license": "ISC",
+  "devDependencies": {
+    "mocha": "^2.4.5",
+    "nodemon": "^1.9.1"
+  }
+}
