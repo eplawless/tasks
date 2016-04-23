@@ -1,9 +1,5 @@
 var Task = require('../lib/index.js');
 
-function fetch(url) {
-
-}
-
 function timer(duration) {
     return new Task(function(resolve, reject) {
         var startTime = Date.now();
@@ -21,9 +17,9 @@ function just(value) {
     });
 }
 
-function justError(error) {
+function error(error) {
     return new Task(function(resolve, reject) {
-        reject(error);
+        reject(new Error(error));
     });
 }
 
@@ -182,6 +178,17 @@ describe('Task', function() {
         }
     })
 
+    it('expects a mapped task to be a task', function() {
+        var taskMapFunc = just(1).map(function() {});
+        var taskMapTask = just(1).map(just(2));
+        if (!(taskMapFunc instanceof Task)) {
+            throw new TypeError('expected instanceof Task to be true');
+        }
+        if (!(taskMapTask instanceof Task)) {
+            throw new TypeError('expected instanceof Task to be true');
+        }
+    });
+
     it('does not allow primitives passed to map', function(done) {
         try {
             just(1)
@@ -198,6 +205,120 @@ describe('Task', function() {
                 done();
             }
         }
+    });
+
+    describe('Task.all', function() {
+
+        it('resolves immediately with an empty array when given no tasks', function(done) {
+            Task.all().subscribe(function(value) {
+                if (!Array.isArray(value) || value.length > 0) {
+                    done(new Error('expected empty array, got ' + value));
+                } else {
+                    done();
+                }
+            }, function(error) {
+                done(error);
+            });
+        });
+
+        it('can resolve just one task', function(done) {
+            Task.all(just(3))
+                .subscribe(function(results) {
+                    if (!Array.isArray(results) || results.length !== 1 || results[0] !== 3) {
+                        done(new Error('results were wrong'));
+                    } else {
+                        done();
+                    }
+                }, function(error) {
+                    done(error || new Error('failed'));
+                })
+        });
+
+        it('can resolve an array of tasks', function(done) {
+            Task.all([just(1), just(2), just(3)])
+                .subscribe(function(results) {
+                    if (!Array.isArray(results)
+                        || results.length !== 3
+                        || results[0] !== 1
+                        || results[1] !== 2
+                        || results[2] !== 3)
+                    {
+                        done(new Error('malformed results: ' + results));
+                    } else {
+                        done();
+                    }
+                }, function(error) {
+                    done(error);
+                });
+        });
+
+        it('can resolve variadic arguments of tasks', function(done) {
+            Task.all(just(1), just(2), just(3))
+                .subscribe(function(results) {
+                    if (!Array.isArray(results)
+                        || results.length !== 3
+                        || results[0] !== 1
+                        || results[1] !== 2
+                        || results[2] !== 3)
+                    {
+                        done(new Error('malformed results: ' + results));
+                    } else {
+                        done();
+                    }
+                }, function(error) {
+                    done(error);
+                });
+        });
+
+        it('rejects with the first error it gets', function(done) {
+            Task.all(just(1), just(2), error('bah'), just(3))
+                .subscribe(function(results) {
+                    done(new Error('how dare you'));
+                }, function(error) {
+                    if (error.message !== 'bah') {
+                        done(error);
+                    } else {
+                        done();
+                    }
+                })
+        });
+
+        it('rejects if an exception is thrown from subscribe', function(done) {
+            var shit = new Task(function(resolve, reject) {
+                throw new Error('fuck youuu');
+            });
+            Task.all(shit).subscribe(function(value) {
+                done(new Error('should not succeed'));
+            }, function(error) {
+                if (error.message !== 'fuck youuu') {
+                    done(error);
+                } else {
+                    done();
+                }
+            })
+        });
+
+        it('handles async fine', function(done) {
+            var startTime = Date.now();
+            Task.all([
+                timer(10),
+                timer(20).map(error('damn')),
+                timer(30)
+            ])
+            .subscribe(function(result) {
+                done(new Error('expected failure'));
+            }, function(error) {
+                var duration = Date.now() - startTime;
+                if (error.message !== 'damn') {
+                    done(error);
+                } else if (duration >= 30) {
+                    done(new Error('took too long'));
+                } else {
+                    done();
+                }
+            })
+        });
+
     });
 
 });
